@@ -141,70 +141,74 @@ class AutorefManager {
     $autoref_storage = $this->entityTypeManager->getStorage('autoref');
 
     // Iterate through all autoref fields on all content entity types.
-    foreach ($this->getAutorefFields() as $key => $field) {
+    foreach ($this->getAutorefFields() as $entity_type => $bundle_field_data) {
+      foreach ($bundle_field_data as $bundle => $bundle_fields) {
+        foreach ($bundle_fields as $key => $field) {
 
-      $autoref_field_name = $field->getName();
-      $target_entity_type_id = $field->getTargetEntityTypeId();
-      $target_entity_storage = $this->entityTypeManager->getStorage($target_entity_type_id);
+          $autoref_field_name = $field->getName();
+          $target_entity_type_id = $field->getTargetEntityTypeId();
+          $target_entity_storage = $this->entityTypeManager->getStorage($target_entity_type_id);
 
-      // Load all entities of the entity type having an autoref field where the
-      // autoref field is populated.
-      $query = $target_entity_storage
-        ->getQuery();
-      $query->condition($autoref_field_name, NULL, 'IS NOT NULL');
-      $result = $query->execute();
+          // Load all entities of the entity type having an autoref field where
+          // the autoref field is populated.
+          $query = $target_entity_storage
+            ->getQuery();
+          $query->condition($autoref_field_name, NULL, 'IS NOT NULL');
+          $result = $query->execute();
 
-      if (empty($result)) {
-        continue;
-      }
+          if (empty($result)) {
+            continue;
+          }
 
-      $target_entities = [];
-      foreach ($result as $revision_id => $entity_id) {
-        $target_entities[] = $target_entity_storage->load($entity_id);
-      }
+          $target_entities = [];
+          foreach ($result as $revision_id => $entity_id) {
+            $target_entities[] = $target_entity_storage->load($entity_id);
+          }
 
-      // Iterate through all autoref target entities.
-      foreach ($target_entities as $key => $target_entity) {
+          // Iterate through all autoref target entities.
+          foreach ($target_entities as $key => $target_entity) {
 
-        foreach ($target_entity->get($autoref_field_name)->getValue() as $key_inner => $data) {
+            foreach ($target_entity->get($autoref_field_name)->getValue() as $key_inner => $data) {
 
-          $autoref_entity = $autoref_storage->load($data['target_id']);
+              $autoref_entity = $autoref_storage->load($data['target_id']);
 
-          // Check autoref_update and autoref_insert on autoref entity against the new state of entity.
-          if (($entity->isNew() && !empty($autoref_entity->autoref_insert->value))
-            || (!$entity->isNew() && !empty($autoref_entity->autoref_update->value))) {
+              // Check autoref_update and autoref_insert on autoref entity against the new state of entity.
+              if (($entity->isNew() && !empty($autoref_entity->autoref_insert->value))
+                || (!$entity->isNew() && !empty($autoref_entity->autoref_update->value))) {
 
-            foreach ($autoref_entity->field_name->getValue() as $field_name_data) {
+                foreach ($autoref_entity->field_name->getValue() as $field_name_data) {
 
-              $field_name_field = $this->fieldStorageConfigStorage->load($field_name_data['target_id']);
-              $field_name = $field_name_field->getName();
-              $entity_field_values = $entity->get($field_name)->getValue();
+                  $field_name_field = $this->fieldStorageConfigStorage->load($field_name_data['target_id']);
+                  $field_name = $field_name_field->getName();
+                  $entity_field_values = $entity->get($field_name)->getValue();
 
-              // If this autoref is configured only to populate empty field and
-              // this field is already populated, skip this autoref.
-              if (($autoref_entity->autoref_empty->value == TRUE) && !empty($entity_field_values)) {
-                continue;
-              }
+                  // If this autoref is configured only to populate empty field and
+                  // this field is already populated, skip this autoref.
+                  if (($autoref_entity->autoref_empty->value == TRUE) && !empty($entity_field_values)) {
+                    continue;
+                  }
 
-              // Check if $target_entity is already in the field values.
-              foreach ($entity_field_values as $key => $data) {
-                if ($data['target_id'] == $target_entity->id()) {
-                  continue 2;
-                }
-              }
+                  // Check if $target_entity is already in the field values.
+                  foreach ($entity_field_values as $key => $data) {
+                    if ($data['target_id'] == $target_entity->id()) {
+                      continue 2;
+                    }
+                  }
 
-              /**
-               * @var string $key
-               * @var \Drupal\autoref\Plugin\autoref\matcher\MatcherInterface $matcher_plugin
-               */
-              foreach ($matcher_plugins as $key => $matcher_plugin) {
-                $success = $matcher_plugin->matchEntity($autoref_entity, $target_entity, $entity);
-                if ($success) {
-                  $entity_field_values[] = [
-                    'target_id' => $target_entity->id(),
-                  ];
-                  $entity->set($field_name, $entity_field_values);
-                  continue 2;
+                  /**
+                   * @var string $key
+                   * @var \Drupal\autoref\Plugin\autoref\matcher\MatcherInterface $matcher_plugin
+                   */
+                  foreach ($matcher_plugins as $key => $matcher_plugin) {
+                    $success = $matcher_plugin->matchEntity($autoref_entity, $target_entity, $entity);
+                    if ($success) {
+                      $entity_field_values[] = [
+                        'target_id' => $target_entity->id(),
+                      ];
+                      $entity->set($field_name, $entity_field_values);
+                      continue 2;
+                    }
+                  }
                 }
               }
             }
@@ -243,16 +247,15 @@ class AutorefManager {
         }
 
         // @todo allow determining order of field processing.
-        if ($field->getTargetEntityTypeId() == 'taxonomy_term') {
-          array_unshift($data[$entity_type][$bundle][$field_name], $field);
-        }
-        else {
-          $data[$entity_type][$bundle][$field_name][] = $field;
-        }
+        $data[$entity_type][$bundle][$field_name] = $field;
       }
 
       $this->cache->set($cid, $data);
     }
+    else {
+      $data = $data->data;
+    }
+
     return $data;
   }
 
