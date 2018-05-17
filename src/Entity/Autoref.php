@@ -37,6 +37,9 @@ use Drupal\user\UserInterface;
  *     "inline_form" = "Drupal\autoref\Form\AutorefInlineForm",
  *     "list_builder" = "Drupal\Core\Entity\EntityListBuilder",
  *     "translation" = "Drupal\content_translation\ContentTranslationHandler",
+ *     "route_provider" = {
+ *       "html" = "Drupal\Core\Entity\Routing\DefaultHtmlRouteProvider",
+ *     },
  *   },
  *   base_table = "autoref",
  *   data_table = "autoref_field_data",

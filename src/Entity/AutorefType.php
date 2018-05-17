@@ -21,7 +21,7 @@ use Drupal\autoref\AutorefTypeInterface;
  *     },
  *     "list_builder" = "Drupal\autoref\ListBuilder\AutorefTypeListBuilder",
  *     "route_provider" = {
- *       "html" = "Drupal\autoref\Routing\AutorefTypeRouteProvider",
+ *       "html" = "Drupal\Core\Entity\Routing\AdminHtmlRouteProvider",
  *     },
  *   },
  *   admin_permission = "administer autoref",
